@@ -106,7 +106,13 @@ function handleCallback() {
 async function api(path) {
   showLoadingBar(true);
   try {
+    console.log(`Fetching from: ${API_BASE}${path}`); // Debug log
     const res = await fetch(`${API_BASE}${path}`);
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error(`API Error: Status ${res.status}, Path: ${path}, Response:`, errorText);
+      throw new Error(`API Error: Status ${res.status}, ${errorText}`);
+    }
     const data = await res.json();
     if (data._cached) {
       console.log('Offline — showing cached data');
@@ -114,6 +120,9 @@ async function api(path) {
     lastFetchTime = Date.now();
     updateFreshnessIndicator();
     return data;
+  } catch (e) {
+    console.error(`Fetch failed for ${API_BASE}${path}:`, e); // Log full error object
+    throw e; // Re-throw to propagate to UI
   } finally {
     showLoadingBar(false);
   }
