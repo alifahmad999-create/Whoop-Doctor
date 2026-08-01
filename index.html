@@ -1,1 +1,872 @@
-<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\"/>\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover\"/>\n  <meta name=\"apple-mobile-web-app-capable\" content=\"yes\"/>\n  <meta name=\"apple-mobile-web-app-status-bar-style\" content=\"black-translucent\"/>\n  <meta name=\"apple-mobile-web-app-title\" content=\"JARVIS Health\"/>\n  <meta name=\"theme-color\" content=\"#0f172a\"/>\n  <link rel=\"manifest\" href=\"/manifest.json\"/>\n  <link rel=\"icon\" href=\"/icon-192.svg\"/>\n  <link rel=\"apple-touch-icon\" href=\"/icon-192.svg\"/>\n  <title>JARVIS Health</title>\n  <style>\n    :root {\n      --bg: #0f172a;\n      --card: #1e293b;\n      --card-border: #334155;\n      --text: #e2e8f0;\n      --text-dim: #64748b;\n      --text-muted: #94a3b8;\n      --accent: #0d9488;\n      --green: #22c55e;\n      --lime: #a3e635;\n      --yellow: #eab308;\n      --orange: #f97316;\n      --red: #ef4444;\n      --nav-bg: #0b1324;\n      --nav-border: #1e293b;\n    }\n    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }\n    body {\n      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;\n      background: var(--bg);\n      color: var(--text);\n      padding: 0 0 70px 0;\n      min-height: 100dvh;\n      -webkit-font-smoothing: antialiased;\n    }\n    .page { display: none; padding: 0 16px 20px; max-width: 600px; margin: 0 auto; }\n    .page.active { display: block; }\n\n    /* Loading */\n    .loading {\n      display: flex;\n      flex-direction: column;\n      align-items: center;\n      justify-content: center;\n      min-height: calc(100dvh - 100px); \n      gap: 20px;\n      font-size: 16px;\n      color: var(--text-dim);\n    }\n    .spinner {\n      border: 4px solid rgba(255, 255, 255, 0.3);\n      border-radius: 50%;\n      border-top: 4px solid var(--accent);\n      width: 40px;\n      height: 40px;\n      animation: spin 1s linear infinite;\n    }\n    @keyframes spin {\n      0% { transform: rotate  (0deg); }\n      100% { transform: rotate(360deg); }\n    }\n\n    /* Header */\n    header {\n      display: flex;\n      justify-content: space-between;\n      align-items: center;\n      padding: 16px;\n      padding-top: max(16px, env(safe-area-inset-top));\n      max-width: 600px;\n      margin: 0 auto;\n      position: sticky;\n      top: 0;\n      background: var(--bg);\n      z-index: 10;\n      border-bottom: 1px solid var(--card-border);\n    }\n    header h1 {\n      font-size: 18px;\n      font-weight: 600;\n      color: var(--text);\n      display: flex;\n      align-items: center;\n      gap: 8px;\n    }\n    header h1 .date {\n      font-size: 14px;\n      color: var(--text-dim);\n      font-weight: 400;\n    }\n    header button {\n      background: transparent;\n      border: none;\n      color: var(--accent);\n      font-size: 14px;\n      cursor: pointer;\n      padding: 8px 12px;\n      border-radius: 8px;\n    }\n    header button:hover {\n      background: rgba(var(--accent-rgb), 0.1);\n    }\n\n    /* Main content */\n    .score-card {\n      background: var(--card);\n      border: 1px solid var(--card-border);\n      border-radius: 18px;\n      padding: 24px;\n      margin-bottom: 20px;\n      text-align: center;\n    }\n    .score-badge {\n      position: relative;\n      width: 172px;\n      height: 172px;\n      margin: 0 auto 16px;\n    }\n    .score-ring {\n      position: absolute;\n      top: 0;\n      left: 0;\n      width: 100%;\n      height: 100%;\n      transform: rotate(-90deg);\n    }\n    .score-ring circle {\n      fill: none;\n      stroke-width: 10px;\n      stroke-linecap: round;\n    }\n    .score-ring .bg {\n      stroke: var(--card-border);\n      opacity: 0.5;\n    }\n    .score-ring .fg {\n      stroke: var(--accent);\n      stroke-dasharray: 450;\n      stroke-dashoffset: var(--dash-offset, 450);\n      transition: stroke-dashoffset 0.5s ease-out;\n    }\n    .score-value {\n      position: absolute;\n      top: 50%;\n      left: 50%;\n      transform: translate(-50%, -50%);\n      font-size: 56px;\n      font-weight: 700;\n      color: var(--text);\n    }\n    .score-label {\n      font-size: 15px;\n      font-weight: 600;\n      text-transform: uppercase;\n      color: var(--text-dim);\n    }\n    .narrative {\n      font-size: 15px;\n      line-height: 1.6;\n      color: var(--text-muted);\n      margin-top: 20px;\n      text-align: left;\n    }\n    .metric-grid {\n      display: grid;\n      grid-template-columns: repeat(2, 1fr);\n      gap: 12px;\n      margin-top: 20px;\n    }\n    .metric-card {\n      background: var(--nav-bg);\n      border-radius: 12px;\n      padding: 16px;\n      text-align: left;\n      border: 1px solid var(--card-border);\n    }\n    .metric-card .label {\n      font-size: 10px;\n      color: var(--text-dim);\n      text-transform: uppercase;\n      margin-bottom: 4px;\n      display: flex;\n      align-items: center;\n      gap: 6px;\n    }\n    .metric-card .value {\n      font-size: 22px;\n      font-weight: 600;\n      color: var(--text);\n    }\n    .metric-card .unit {\n      font-size: 12px;\n      color: var(--text-dim);\n    }\n    .metric-card .dot {\n      width: 8px;\n      height: 8px;\n      border-radius: 50%;\n      display: inline-block;\n    }\n    .anomaly-section {\n      margin-top: 20px;\n      text-align: left;\n    }\n    .anomaly-section h3 {\n      font-size: 14px;\n      color: var(--orange);\n      margin-bottom: 8px;\n    }\n    .anomaly-list {\n      list-style: none;\n      padding-left: 0;\n    }\n    .anomaly-list li {\n      font-size: 13px;\n      color: var(--text-muted);\n      margin-bottom: 4px;\n      display: flex;\n      align-items: flex-start;\n      gap: 6px;\n    }\n    .anomaly-list li::before {\n      content: '\\26a0'; \n      color: var(--orange);\n      font-size: 14px;\n      line-height: 1;\n    }\n\n    /* Navigation */\n    nav {\n      display: flex;\n      justify-content: space-around;\n      background: var(--nav-bg);\n      border-top: 1px solid var(--nav-border);\n      position: fixed;\n      bottom: 0;\n      left: 0;\n      right: 0;\n      width: 100%;\n      max-width: 600px;\n      margin: 0 auto;\n      padding-bottom: env(safe-area-inset-bottom);\n      z-index: 100;\n    }\n    nav button {\n      flex: 1;\n      padding: 10px 0;\n      color: var(--text-dim);\n      font-size: 11px;\n      display: flex;\n      flex-direction: column;\n      align-items: center;\n      gap: 4px;\n      background: none;\n      border: none;\n      cursor: pointer;\n      -webkit-tap-highlight-color: transparent;\n    }\n    nav button.active {\n      color: var(--accent);\n    }\n    nav button svg {\n      width: 24px;\n      height: 24px;\n      fill: currentColor;\n    }\n\n    /* Charts */\n    .chart-container {\n      background: var(--card);\n      border: 1px solid var(--card-border);\n      border-radius: 18px;\n      padding: 20px;\n      margin-top: 20px;\n      margin-bottom: 20px;\n    }\n    .chart-toggles {\n      display: flex;\n      gap: 10px;\n      margin-bottom: 15px;\n      flex-wrap: wrap;\n    }\n    .chart-toggles button {\n      background: var(--card-border);\n      color: var(--text-dim);\n      border: none;\n      padding: 8px 12px;\n      border-radius: 8px;\n      cursor: pointer;\n      font-size: 13px;\n    }\n    .chart-toggles button.active {\n      background: var(--accent);\n      color: var(--text);\n    }\n\n    /* Trip Page */\n    .trip-summary {\n      margin-top: 20px;\n      display: grid;\n      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));\n      gap: 15px;\n    }\n    .trip-card {\n      background: var(--card);\n      border: 1px solid var(--card-border);\n      border-radius: 12px;\n      padding: 16px;\n      text-align: center;\n    }\n    .trip-card .label {\n      font-size: 12px;\n      color: var(--text-dim);\n      margin-bottom: 8px;\n    }\n    .trip-card .value {\n      font-size: 20px;\n      font-weight: 600;\n      color: var(--text);\n      display: block;\n    }\n    .trip-card .trend {\n      font-size: 14px;\n      font-weight: 500;\n    }\n    .trip-card .trend.up { color: var(--red); }\n    .trip-card .trend.down { color: var(--green); }\n    .trip-card .trend.flat { color: var(--text-dim); }\n\n    /* Profile */\n    .profile-page {\n      text-align: center;\n    }\n    .profile-page input[type=\"text\"],\n    .profile-page input[type=\"number\"] {\n      width: 100%;\n      padding: 12px;\n      margin-bottom: 12px;\n      border-radius: 8px;\n      border: 1px solid var(--card-border);\n      background: var(--card);\n      color: var(--text);\n      font-size: 16px;\n    }\n    .profile-page button {\n      width: 100%;\n      padding: 12px;\n      margin-bottom: 10px;\n      border-radius: 8px;\n      border: none;\n      background: var(--accent);\n      color: white;\n      font-size: 16px;\n      cursor: pointer;\n    }\n    .profile-page button.secondary {\n      background: var(--card-border);\n      color: var(--text-dim);\n    }\n\n    /* Install Banner */\n    #installBanner {\n      display: none;\n      position: fixed;\n      bottom: 70px;\n      left: 50%;\n      transform: translateX(-50%);\n      max-width: 600px;\n      width: calc(100% - 32px);\n      background: var(--accent);\n      color: white;\n      padding: 12px 16px;\n      border-radius: 12px;\n      z-index: 99;\n      box-shadow: 0 4px 10px rgba(0,0,0,0.3);\n      align-items: center;\n      justify-content: space-between;\n      gap: 10px;\n      font-size: 15px;\n    }\n    #installBanner.show {\n      display: flex;\n    }\n    #installBanner button {\n      background: white;\n      color: var(--accent);\n      border: none;\n      padding: 8px 15px;\n      border-radius: 8px;\n      cursor: pointer;\n      font-weight: 600;\n      white-space: nowrap;\n    }\n    #installBanner #dismissInstall {\n      background: none;\n      color: white;\n    }\n  </style>\n\n</head>\n<body>\n  <header>\n    <h1 id=\"appTitle\">JARVIS Health <span class=\"date\" id=\"currentDate\"></span></h1>\n    <button id=\"profileBtn\">Profile</button>\n  </header>\n\n  <div id=\"page-brief\" class=\"page active\">\n    <div class=\"loading\">\n      <div class=\"spinner\"></div>\n      <p>Loading your data...</p>\n    </div>\n    <div id=\"content\" style=\"display:none;\">\n      <div class=\"score-card\">\n        <div class=\"score-badge\">\n          <svg class=\"score-ring\" viewBox=\"0 0 172 172\">\n            <circle class=\"bg\" cx=\"86\" cy=\"86\" r=\"78\"/>\n            <circle class=\"fg\" cx=\"86\" cy=\"86\" r=\"78\" style=\"stroke-dashoffset: 450;\"/>\n          </svg>\n          <div class=\"score-value\" id=\"readinessScore\">--</div>\n        </div>\n        <div class=\"score-label\" id=\"readinessLabel\">LOADING</div>\n        <div class=\"narrative\" id=\"narrativeSummary\">...</div>\n\n        <div class=\"metric-grid\">\n          <div class=\"metric-card\"><div class=\"label\"><span class=\"dot green\"></span> HRV <span class=\"unit\">(ms)</span></div><div class=\"value\" id=\"metricHrv\">--</div></div>\n          <div class=\"metric-card\"><div class=\"label\"><span class=\"dot red\"></span> RHR <span class=\"unit\">(bpm)</span></div><div class=\"value\" id=\"metricRhr\">--</div></div>\n          <div class=\"metric-card\"><div class=\"label\"><span class=\"dot green\"></span> SLEEP <span class=\"unit\">(h)</span></div><div class=\"value\" id=\"metricSleepHours\">--</div></div>\n          <div class=\"metric-card\"><div class=\"label\"><span class=\"dot yellow\"></span> RECOV <span class=\"unit\">%</span></div><div class=\"value\" id=\"metricRecoveryScore\">--</div></div>\n          <div class=\"metric-card\"><div class=\"label\"><span class=\"dot green\"></span> DEEP <span class=\"unit\">(h)</span></div><div class=\"value\" id=\"metricDeepSleepHours\">--</div></div>\n          <div class=\"metric-card\"><div class=\"label\"><span class=\"dot orange\"></span> STRAIN <span class=\"unit\"></span></div><div class=\"value\" id=\"metricStrainYesterday\">--</div></div>\n          <div class=\"metric-card\"><div class=\"label\"><span class=\"dot red\"></span> SPO2 <span class=\"unit\">%</span></div><div class=\"value\" id=\"metricSpo2\">--</div></div>\n          <div class=\"metric-card\"><div class=\"label\"><span class=\"dot orange\"></span> DEFICIT <span class=\"unit\">(h)</span></div><div class=\"value\" id=\"metricSleepDeficit\">--</div></div>\n        </div>\n        <div class=\"anomaly-section\" id=\"anomalySection\" style=\"display:none;\">\n          <h3>A N O M A L I E S</h3>\n          <ul class=\"anomaly-list\" id=\"anomalyList\"></ul>\n        </div>\n      </div>\n    </div>\n  </div>\n\n  <div id=\"page-trend\" class=\"page\">\n    <div class=\"chart-container\">\n      <div class=\"chart-toggles\">\n        <button data-metric=\"hrv\" class=\"active\">HRV</button>\n        <button data-metric=\"rhr\">RHR</button>\n        <button data-metric=\"recovery_score\">Recovery</button>\n        <button data-metric=\"sleep_hours\">Sleep (h)</button>\n        <button data-metric=\"strain\">Strain</button>\n      </div>\n      <canvas id=\"trendChart\"></canvas>\n    </div>\n    <div class=\"loading\" style=\"min-height:200px;\">\n      <div class=\"spinner\"></div>\n      <p>Loading trends...</p>\n    </div>\n  </div>\n\n  <div id=\"page-trip\" class=\"page\">\n    <div class=\"loading\" style=\"min-height:200px;\">\n      <div class=\"spinner\"></div>\n      <p>Loading trip data...</p>\n    </div>\n    <div id=\"tripContent\" style=\"display:none;\">\n      <div class=\"score-card\">\n        <div class=\"score-label\">ITALY 2026</div>\n        <div class=\"narrative\">Comparing your health metrics from your trip to Italy vs. your home baseline.</div>\n        <div class=\"trip-summary\">\n          <div class=\"trip-card\"><div class=\"label\">HRV</div><div class=\"value\" id=\"tripHrv\">--</div></div>\n          <div class=\"trip-card\"><div class=\"label\">RHR</div><div class=\"value\" id=\"tripRhr\">--</div></div>\n          <div class=\"trip-card\"><div class=\"label\">RECOVERY</div><div class=\"value\" id=\"tripRecovery\">--</div></div>\n          <div class=\"trip-card\"><div class=\"label\">SLEEP</div><div class=\"value\" id=\"tripSleep\">--</div></div>\n        </div>\n      </div>\n    </div>\n  </div>\n\n  <div id=\"page-profile\" class=\"page\">\n    <div class=\"profile-page\">\n      <h2>Profile Settings</h2>\n      <input type=\"text\" id=\"profileName\" placeholder=\"Your Name\"/>\n      <input type=\"number\" id=\"profileHeight\" placeholder=\"Height (cm)\" min=\"100\" max=\"250\"/>\n      <input type=\"number\" id=\"profileWeight\" placeholder=\"Current Weight (kg)\" min=\"30\" max=\"300\" step=\"0.1\"/>\n      <input type=\"number\" id=\"profileAge\" placeholder=\"Age\" min=\"10\" max=\"100\"/>\n      <input type=\"number\" id=\"profileHrvBaseline\" placeholder=\"HRV Baseline (ms)\" min=\"10\" max=\"150\" step=\"0.1\"/>\n      \n      <button id=\"saveProfileBtn\">Save Profile</button>\n      <button id=\"cancelProfileBtn\" class=\"secondary\">Cancel</button>\n    </div>\n  </div>\n\n  <div id=\"installBanner\">\n    <span>Works offline and installs like a native app.</span>\n    <div>\n      <button id=\"installBtn\">INSTALL</button>\n      <button id=\"dismissInstall\">NO THANKS</button>\n    </div>\n  </div>\n\n  <nav>\n    <button id=\"navBrief\" data-page=\"brief\" class=\"active\">\n      <svg xmlns=\"http://www.w3.org/2000/svg\" height=\"24\" viewBox=\"0 0 24 24\" width=\"24\"><path d=\"M0 0h24v24H0z\" fill=\"none\"/><path d=\"M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7h14V5H7v2z\"/></svg>\n      Brief\n    </button>\n    <button id=\"navTrend\" data-page=\"trend\">\n      <svg xmlns=\"http://www.w3.org/2000/svg\" height=\"24\" viewBox=\"0 0 24 24\" width=\"24\"><path d=\"M0 0h24v24H0z\" fill=\"none\"/><path d=\"M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z\"/></svg>\n      Trend\n    </button>\n    <button id=\"navTrip\" data-page=\"trip\">\n      <svg xmlns=\"http://www.w3.org/2000/svg\" height=\"24\" viewBox=\"0 0 24 24\" width=\"24\"><path d=\"M0 0h24v24H0z\" fill=\"none\"/><path d=\"M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z\"/></svg>\n      Trip\n    </button>\n  </nav>\n\n  <script src=\"https://cdn.jsdelivr.net/npm/chart.js\"></script>\n  <script src=\"/app.js\"></script>\n  <script>\n    // Dynamically set accent color based on theme-color from manifest if needed\n    document.addEventListener('DOMContentLoaded', () => {\n      const themeColorMeta = document.querySelector('meta[name=\"theme-color\"]');\n      if (themeColorMeta) {\n        const themeColor = themeColorMeta.getAttribute('content');\n        document.documentElement.style.setProperty('--accent', themeColor);\n        document.documentElement.style.setProperty('--accent-rgb', hexToRgb(themeColor));\n      }\n\n      function hexToRgb(hex) {\n        const bigint = parseInt(hex.slice(1), 16);\n        const r = (bigint >> 16) & 255;\n        const g = (bigint >> 8) & 255;\n        const b = bigint & 255;\n        return `${r}, ${g}, ${b}`;\n      }\n    });\n\n  </script>\n</body>\n</html>\n
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="Whoop Doctor"/>
+  <meta name="theme-color" content="#0a0618"/>
+  <link rel="manifest" href="/manifest.json"/>
+  <link rel="icon" href="/icon.svg"/>
+  <link rel="apple-touch-icon" href="/icon.svg"/>
+  <title>Whoop Doctor</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    :root {
+      --bg: #0a0618;
+      --surface: #13102a;
+      --glass: rgba(139,92,246,0.08);
+      --glass-border: rgba(139,92,246,0.12);
+      --text: #f0f2f5;
+      --text-secondary: #a8a3c0;
+      --text-tertiary: #6b6690;
+      --accent: #8b5cf6;
+      --accent-dim: rgba(139,92,246,0.15);
+      --teal: #14b8a6;
+      --green: #22c55e;
+      --yellow: #eab308;
+      --orange: #f97316;
+      --red: #ef4444;
+      --tab-bg: rgba(19,16,42,0.85);
+      --tab-border: rgba(139,92,246,0.15);
+      --nav-height: 72px;
+    }
+
+    body {
+      font-family: -apple-system, 'SF Pro Display', 'Inter', BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100dvh;
+      -webkit-font-smoothing: antialiased;
+      /* FIX: padding-bottom matches nav height + safe area */
+      padding-bottom: calc(var(--nav-height) + env(safe-area-inset-bottom, 0px) + 16px);
+      overflow-x: hidden;
+    }
+
+    /* ─── Header ─── */
+    .header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 20px 20px 8px;
+      padding-top: max(20px, env(safe-area-inset-top));
+      position: sticky; top: 0; z-index: 10;
+      background: linear-gradient(180deg, var(--bg) 60%, transparent);
+    }
+    .header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; color: var(--text); }
+    .header .date { font-size: 13px; color: var(--text-tertiary); font-weight: 500; }
+
+    /* ─── Freshness Indicator ─── */
+    .freshness-bar {
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      padding: 6px 12px; margin: 0 16px 8px;
+      font-size: 11px; font-weight: 500; color: var(--text-tertiary);
+      border-radius: 10px;
+      background: rgba(139,92,246,0.05);
+      border: 1px solid rgba(139,92,246,0.08);
+      max-width: 480px; margin-left: auto; margin-right: auto;
+    }
+    .freshness-dot {
+      width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+    }
+    .freshness-dot.fresh { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .freshness-dot.stale { background: var(--yellow); box-shadow: 0 0 6px var(--yellow); }
+    .freshness-dot.very-stale { background: var(--red); box-shadow: 0 0 6px var(--red); }
+
+    /* ─── Pull to Refresh ─── */
+    .pull-to-refresh {
+      display: flex; align-items: center; justify-content: center;
+      height: 0; overflow: hidden;
+      transition: height 0.3s ease;
+      color: var(--text-tertiary); font-size: 13px; font-weight: 500;
+    }
+    .pull-to-refresh.visible { height: 48px; }
+    .pull-to-refresh .ptr-spinner {
+      width: 20px; height: 20px; border: 2px solid var(--glass-border);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin 0.8s linear infinite; margin-right: 8px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .content { padding: 8px 16px 20px; max-width: 480px; margin: 0 auto; }
+
+    /* ─── Score Strip (V1 Clinical Layout) ─── */
+    .score-strip {
+      display: flex; align-items: center; gap: 16px;
+      background: var(--surface);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      padding: 20px;
+      margin-bottom: 16px;
+      position: relative;
+      overflow: hidden;
+    }
+    .score-strip::before {
+      content: ''; position: absolute; top: -60%; right: -60%;
+      width: 120%; height: 120%;
+      background: radial-gradient(circle at top right, var(--accent-dim), transparent 70%);
+      pointer-events: none;
+    }
+    .score-ring-wrap {
+      position: relative;
+      width: 72px; height: 72px;
+      flex-shrink: 0;
+      z-index: 1;
+    }
+    .score-ring-wrap svg { width: 72px; height: 72px; transform: rotate(-90deg); }
+    .score-ring-bg { fill: none; stroke: rgba(139,92,246,0.15); stroke-width: 6; }
+    .score-ring-fg { fill: none; stroke-width: 6; stroke-linecap: round; transition: stroke-dashoffset 0.8s ease; }
+    .score-ring-number {
+      position: absolute; top: 0; left: 0; width: 72px; height: 72px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; font-weight: 800;
+      pointer-events: none;
+    }
+    .score-info { z-index: 1; flex: 1; min-width: 0; }
+    .score-label-v1 {
+      font-size: 20px; font-weight: 800;
+      letter-spacing: -0.3px;
+      margin-bottom: 2px;
+    }
+    .score-subtitle {
+      font-size: 12px; color: var(--text-tertiary);
+      font-weight: 400;
+    }
+
+    /* Ring + label colors */
+    .score-ring-number.go { color: var(--green); }
+    .score-ring-number.go-light { color: var(--teal); }
+    .score-ring-number.easy { color: var(--yellow); }
+    .score-ring-number.tired { color: var(--orange); }
+    .score-ring-number.drain { color: var(--red); }
+    .score-ring-fg.go { stroke: var(--green); }
+    .score-ring-fg.go-light { stroke: var(--teal); }
+    .score-ring-fg.easy { stroke: var(--yellow); }
+    .score-ring-fg.tired { stroke: var(--orange); }
+    .score-ring-fg.drain { stroke: var(--red); }
+    .score-label-v1.go { color: var(--green); }
+    .score-label-v1.go-light { color: var(--teal); }
+    .score-label-v1.easy { color: var(--yellow); }
+    .score-label-v1.tired { color: var(--orange); }
+    .score-label-v1.drain { color: var(--red); }
+
+    /* ─── Section Labels ─── */
+    .section-label {
+      font-size: 11px; font-weight: 600; color: var(--text-tertiary);
+      text-transform: uppercase; letter-spacing: 1.2px;
+      margin: 24px 0 10px; padding: 0 4px;
+    }
+    .section-label:first-of-type { margin-top: 0; }
+
+    /* ─── Impression Card (V1 Clinical — improved readability) ─── */
+    .impression-card {
+      background: linear-gradient(135deg, rgba(139,92,246,0.15) 0%, rgba(139,92,246,0.05) 100%);
+      border: 1px solid rgba(139,92,246,0.15);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .impression-card .text {
+      font-size: 14.5px; line-height: 1.8; color: var(--text-secondary);
+      font-style: italic;
+      /* IMPROVED: better readability */
+      letter-spacing: 0.1px;
+      word-spacing: 0.5px;
+    }
+    /* IMPROVED: highlight key clinical terms */
+    .impression-card .text .highlight-critical {
+      color: var(--red); font-weight: 600; font-style: normal;
+    }
+    .impression-card .text .highlight-warning {
+      color: var(--yellow); font-weight: 600; font-style: normal;
+    }
+    .impression-card .text .highlight-good {
+      color: var(--green); font-weight: 600; font-style: normal;
+    }
+    .impression-card .text .highlight-metric {
+      color: var(--accent); font-weight: 600; font-style: normal;
+      background: rgba(139,92,246,0.1); padding: 1px 6px; border-radius: 4px;
+    }
+
+    /* ─── Assessment Table (V1 5-system layout) ─── */
+    .assessment-table { display: flex; flex-direction: column; gap: 1px; background: var(--glass-border); border-radius: 14px; overflow: hidden; margin-bottom: 16px; }
+    .assessment-row {
+      display: flex; align-items: center; padding: 12px 16px;
+      background: var(--surface);
+    }
+    .assessment-row .sys-name { flex: 1; font-size: 13px; font-weight: 500; color: var(--text); }
+    .assessment-row .sys-right-col { text-align: right; min-width: 0; }
+    .assessment-row .sys-status { font-size: 13px; font-weight: 600; }
+    .assessment-row .sys-concern { font-size: 11px; color: var(--text-tertiary); margin-top: 1px; }
+
+    .status-green { color: var(--green); }
+    .status-yellow { color: var(--yellow); }
+    .status-orange { color: var(--orange); }
+    .status-red { color: var(--red); }
+    .status-teal { color: var(--teal); }
+
+    /* ─── Collapsible Sections ─── */
+    .collapsible-header {
+      display: flex; align-items: center; justify-content: space-between;
+      cursor: pointer; user-select: none; -webkit-user-select: none;
+      padding: 4px 0;
+      transition: opacity 0.15s;
+    }
+    .collapsible-header:active { opacity: 0.7; }
+    .collapsible-chevron {
+      width: 18px; height: 18px; color: var(--text-tertiary);
+      transition: transform 0.25s ease;
+      flex-shrink: 0;
+    }
+    .collapsible-header.expanded .collapsible-chevron {
+      transform: rotate(180deg);
+    }
+    .collapsible-body {
+      max-height: 0; overflow: hidden;
+      transition: max-height 0.35s ease, opacity 0.25s ease;
+      opacity: 0;
+    }
+    .collapsible-body.expanded {
+      max-height: 2000px; opacity: 1;
+    }
+
+    /* ─── Loading Skeleton ─── */
+    .skeleton-card {
+      background: var(--surface);
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 12px;
+    }
+    .skeleton-line {
+      height: 12px; border-radius: 6px;
+      background: linear-gradient(90deg, rgba(139,92,246,0.08) 25%, rgba(139,92,246,0.15) 50%, rgba(139,92,246,0.08) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s ease infinite;
+      margin-bottom: 10px;
+    }
+    .skeleton-line.w-60 { width: 60%; }
+    .skeleton-line.w-80 { width: 80%; }
+    .skeleton-line.w-40 { width: 40%; }
+    .skeleton-line.h-lg { height: 48px; border-radius: 12px; }
+    .skeleton-ring {
+      width: 72px; height: 72px; border-radius: 50%;
+      background: linear-gradient(90deg, rgba(139,92,246,0.08) 25%, rgba(139,92,246,0.15) 50%, rgba(139,92,246,0.08) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s ease infinite;
+    }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+    /* ─── Risk Cards (V1 5-risk format) ─── */
+    .risk-narrative {
+      background: linear-gradient(135deg, rgba(139,92,246,0.12) 0%, rgba(139,92,246,0.04) 100%);
+      border: 1px solid rgba(139,92,246,0.12);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .risk-narrative p {
+      font-size: 14px;
+      line-height: 1.7;
+      color: var(--text-secondary);
+      margin-bottom: 12px;
+    }
+    .risk-narrative p:last-child { margin-bottom: 0; }
+    .risk-narrative p strong {
+      color: var(--text);
+      font-weight: 600;
+    }
+    .risk-narrative .capstone {
+      background: linear-gradient(135deg, rgba(34,197,94,0.08) 0%, transparent 100%);
+      border-left: 3px solid var(--green);
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-top: 8px;
+      font-style: italic;
+    }
+
+    .risk-card {
+      background: var(--surface);
+      border: 1px solid var(--glass-border);
+      border-radius: 14px;
+      padding: 16px 18px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+    .risk-card::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      border-radius: 3px 0 0 3px;
+    }
+    .risk-card.danger { border-left: none; }
+    .risk-card.danger::before { background: var(--red); }
+    .risk-card.warn::before { background: var(--yellow); }
+    .risk-card.good::before { background: var(--green); }
+    .risk-card.danger .risk-dot { background: var(--red); }
+    .risk-card.warn .risk-dot { background: var(--yellow); }
+    .risk-card.good .risk-dot { background: var(--green); }
+    .risk-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-top: 5px;
+    }
+    .risk-body { flex: 1; min-width: 0; }
+    .risk-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+      flex-wrap: wrap;
+    }
+    .risk-system {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .risk-badge {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 2px 10px;
+      border-radius: 10px;
+    }
+    .risk-badge.danger { background: rgba(239,68,68,0.18); color: var(--red); }
+    .risk-badge.warn { background: rgba(234,179,8,0.18); color: var(--yellow); }
+    .risk-badge.good { background: rgba(34,197,94,0.18); color: var(--green); }
+    .risk-detail {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+    .risk-recommendation {
+      background: linear-gradient(135deg, rgba(34,197,94,0.06) 0%, rgba(19,16,42,0.6) 100%);
+      border: 1px solid rgba(34,197,94,0.12);
+      border-radius: 14px;
+      padding: 18px 20px;
+    }
+    .risk-recommendation .text {
+      font-size: 14px;
+      line-height: 1.7;
+      color: var(--text-secondary);
+    }
+    .risk-recommendation .text strong { color: var(--green); }
+
+    /* ─── Clinical Findings (V1 with emoji) ─── */
+    .finding-card {
+      background: var(--surface);
+      border: 1px solid var(--glass-border);
+      border-radius: 14px;
+      padding: 14px 16px;
+      margin-bottom: 8px;
+      display: flex; align-items: flex-start; gap: 12px;
+    }
+    .finding-card .finding-emoji { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+    .finding-card .finding-text { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+    .finding-card .finding-text strong { color: var(--text); font-weight: 600; }
+
+    /* ─── Action Plan ─── */
+    .action-plan-card {
+      background: linear-gradient(135deg, rgba(34,197,94,0.06) 0%, rgba(34,197,94,0.02) 100%);
+      border: 1px solid rgba(34,197,94,0.12);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .action-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(34,197,94,0.06);
+    }
+    .action-item:last-of-type { border-bottom: none; }
+    .action-impact {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+      min-width: 80px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 4px 8px;
+      border-radius: 8px;
+    }
+    .action-impact.high { background: rgba(239,68,68,0.12); color: var(--red); }
+    .action-impact.medium { background: rgba(234,179,8,0.12); color: var(--yellow); }
+    .action-impact.low { background: rgba(139,92,246,0.10); color: var(--accent); }
+    .impact-dot { font-size: 14px; }
+    .impact-label { font-size: 10px; }
+    .action-body { flex: 1; min-width: 0; }
+    .action-text {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1.4;
+    }
+    .action-reason {
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      margin-top: 3px;
+    }
+    .action-projection {
+      background: linear-gradient(135deg, rgba(34,197,94,0.08) 0%, transparent 100%);
+      border: 1px solid rgba(34,197,94,0.10);
+      border-radius: 10px;
+      padding: 10px 14px;
+      margin-top: 12px;
+      font-size: 12px;
+      color: var(--green);
+      font-weight: 600;
+      text-align: center;
+    }
+
+    /* ─── Condition Screening ─── */
+    .condition-card {
+      background: var(--surface);
+      border: 1px solid var(--glass-border);
+      border-radius: 14px;
+      padding: 14px 16px;
+      margin-bottom: 8px;
+    }
+    .condition-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 6px;
+      flex-wrap: wrap;
+    }
+    .condition-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .condition-confidence {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 3px 10px;
+      border-radius: 10px;
+    }
+    .condition-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .condition-detail {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    /* ─── Trend Page ─── */
+    .trend-header {
+      background: var(--surface);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      padding: 20px;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+    .trend-header h2 { font-size: 18px; font-weight: 700; color: var(--text); }
+    .trend-header .trend-period { font-size: 12px; color: var(--text-tertiary); margin-top: 2px; }
+    .trend-chart {
+      background: var(--surface);
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+    .trend-chart .chart-title { font-size: 11px; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+    .chart-canvas-wrap { position: relative; width: 100%; height: 200px; }
+    .chart-canvas-wrap canvas { width: 100% !important; height: 100% !important; }
+    .trend-bars { display: flex; align-items: flex-end; gap: 6px; height: 100px; padding: 0 4px; }
+    .trend-bar-group { display: flex; flex-direction: column; align-items: center; flex: 1; min-width: 0; height: 100%; justify-content: flex-end; }
+    .trend-bar {
+      width: 100%; max-width: 32px;
+      border-radius: 4px 4px 0 0;
+      min-height: 4px;
+      transition: height 0.4s ease;
+    }
+    .trend-bar-label { font-size: 9px; color: var(--text-tertiary); margin-top: 4px; text-align: center; }
+    .metric-toggles { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+    .metric-toggle {
+      flex: 1; min-width: 56px;
+      padding: 8px 4px; border-radius: 10px;
+      font-size: 11px; font-weight: 600;
+      text-align: center; cursor: pointer;
+      background: var(--glass); color: var(--text-tertiary);
+      border: 1px solid transparent;
+      transition: all 0.2s;
+    }
+    .metric-toggle:active { transform: scale(0.96); }
+    .metric-toggle.active { background: var(--accent-dim); color: var(--accent); border-color: var(--accent); }
+
+    .trend-metric-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--glass-border);
+    }
+    .trend-metric-row:last-child { border-bottom: none; }
+    .trend-metric-name { font-size: 13px; color: var(--text); font-weight: 500; }
+    .trend-metric-values { text-align: right; }
+    .trend-metric-current { font-size: 14px; font-weight: 700; color: var(--text); }
+    .trend-metric-delta { font-size: 11px; font-weight: 500; }
+
+    /* ─── Trip Page ─── */
+    .trip-header {
+      background: var(--surface);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      padding: 20px;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+    .trip-header h2 { font-size: 18px; font-weight: 700; color: var(--text); }
+    .trip-header .trip-date { font-size: 12px; color: var(--text-tertiary); margin-top: 2px; }
+    .trip-header .trip-summary { font-size: 13px; color: var(--text-secondary); margin-top: 8px; }
+
+    .compare-section { margin-bottom: 16px; }
+    .compare-section .compare-title { font-size: 11px; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; padding: 0 4px; }
+
+    .compare-card {
+      background: var(--surface);
+      border: 1px solid var(--glass-border);
+      border-radius: 14px;
+      padding: 14px 16px;
+      margin-bottom: 8px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .compare-card .metric-icon {
+      width: 36px; height: 36px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      font-size: 16px; font-weight: 700;
+    }
+    .compare-card .metric-data { flex: 1; min-width: 0; }
+    .compare-card .metric-name { font-size: 13px; font-weight: 600; color: var(--text); }
+    .compare-card .metric-values { display: flex; gap: 8px; margin-top: 2px; font-size: 12px; color: var(--text-tertiary); }
+    .compare-card .metric-delta { font-size: 12px; font-weight: 600; white-space: nowrap; }
+    .metric-delta.positive { color: var(--green); }
+    .metric-delta.negative { color: var(--red); }
+    .metric-delta.neutral { color: var(--text-tertiary); }
+
+    /* ─── Profile Page ─── */
+    .profile-header {
+      display: flex; flex-direction: column; align-items: center;
+      padding: 32px 20px; text-align: center;
+    }
+    .profile-avatar {
+      width: 64px; height: 64px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--teal));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px; font-weight: 800; color: #fff;
+      margin-bottom: 12px;
+    }
+    .profile-name { font-size: 20px; font-weight: 700; color: var(--text); }
+    .profile-status { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
+    .profile-status.connected { color: var(--green); }
+    .profile-status.disconnected { color: var(--text-tertiary); }
+
+    .glass-card {
+      background: var(--glass);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      padding: 18px 20px;
+      margin-bottom: 12px;
+    }
+
+    .profile-btn {
+      display: block; width: 100%;
+      padding: 14px 20px; border-radius: 14px;
+      font-size: 15px; font-weight: 600;
+      cursor: pointer; border: none; text-decoration: none;
+      text-align: center;
+      transition: opacity 0.15s;
+    }
+    .profile-btn:active { opacity: 0.7; }
+    .profile-btn.primary { background: var(--accent); color: #fff; }
+    .profile-btn.secondary { background: var(--glass); color: var(--text-secondary); border: 1px solid var(--glass-border); margin-top: 8px; }
+
+    /* ─── Export Button ─── */
+    .export-section { margin-top: 16px; }
+    .export-btn {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      width: 100%; padding: 14px 20px; border-radius: 14px;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+      background: rgba(20,184,166,0.1); color: var(--teal);
+      border: 1px solid rgba(20,184,166,0.2);
+      transition: all 0.2s; margin-bottom: 8px;
+    }
+    .export-btn:active { transform: scale(0.98); opacity: 0.8; }
+    .export-btn svg { width: 18px; height: 18px; }
+
+    /* ─── Custom Alerts UI ─── */
+    .alert-card {
+      background: var(--surface);
+      border: 1px solid var(--glass-border);
+      border-radius: 14px;
+      padding: 14px 16px;
+      margin-bottom: 8px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .alert-info { flex: 1; }
+    .alert-name { font-size: 14px; font-weight: 600; color: var(--text); }
+    .alert-desc { font-size: 12px; color: var(--text-tertiary); margin-top: 2px; }
+    .alert-toggle {
+      width: 44px; height: 24px; border-radius: 12px;
+      background: rgba(139,92,246,0.15); border: none; cursor: pointer;
+      position: relative; transition: background 0.2s;
+      flex-shrink: 0;
+    }
+    .alert-toggle.active { background: var(--accent); }
+    .alert-toggle::after {
+      content: ''; position: absolute; top: 2px; left: 2px;
+      width: 20px; height: 20px; border-radius: 50%;
+      background: #fff; transition: transform 0.2s;
+    }
+    .alert-toggle.active::after { transform: translateX(20px); }
+
+    /* ─── Weekly Report Card ─── */
+    .weekly-report {
+      background: linear-gradient(135deg, rgba(139,92,246,0.12) 0%, rgba(20,184,166,0.08) 100%);
+      border: 1px solid rgba(139,92,246,0.15);
+      border-radius: 20px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .weekly-report h3 { font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+    .weekly-report .period { font-size: 12px; color: var(--text-tertiary); margin-bottom: 16px; }
+    .weekly-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .weekly-stat {
+      background: rgba(139,92,246,0.06); border-radius: 12px; padding: 12px;
+      text-align: center;
+    }
+    .weekly-stat .stat-value { font-size: 22px; font-weight: 800; color: var(--text); }
+    .weekly-stat .stat-label { font-size: 10px; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+    .weekly-grade {
+      display: flex; align-items: center; justify-content: center;
+      margin-top: 16px; padding-top: 16px;
+      border-top: 1px solid rgba(139,92,246,0.1);
+    }
+    .weekly-grade .grade-letter {
+      font-size: 36px; font-weight: 900; margin-right: 12px;
+    }
+    .weekly-grade .grade-text {
+      font-size: 13px; color: var(--text-secondary); line-height: 1.5;
+    }
+
+    /* ─── Sleep Architecture Viz ─── */
+    .sleep-arch-card {
+      background: var(--surface);
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+    .sleep-stages-bar {
+      display: flex; height: 32px; border-radius: 8px; overflow: hidden; margin: 12px 0;
+    }
+    .sleep-stage-seg { transition: width 0.4s ease; }
+    .sleep-stage-seg.awake { background: rgba(239,68,68,0.6); }
+    .sleep-stage-seg.light { background: rgba(139,92,246,0.5); }
+    .sleep-stage-seg.deep { background: rgba(30,27,75,0.9); }
+    .sleep-stage-seg.rem { background: rgba(20,184,166,0.6); }
+    .sleep-legend {
+      display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px;
+    }
+    .sleep-legend-item {
+      display: flex; align-items: center; gap: 5px;
+      font-size: 11px; color: var(--text-secondary);
+    }
+    .sleep-legend-dot {
+      width: 8px; height: 8px; border-radius: 3px; flex-shrink: 0;
+    }
+
+    /* ─── Bottom Nav ─── */
+    .tab-bar {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+      padding: 0 16px;
+      padding-bottom: max(0px, env(safe-area-inset-bottom));
+      pointer-events: none;
+    }
+    .tab-bar-inner {
+      background: var(--tab-bg);
+      backdrop-filter: blur(40px);
+      -webkit-backdrop-filter: blur(40px);
+      border: 1px solid var(--tab-border);
+      border-top-left-radius: 24px;
+      border-top-right-radius: 24px;
+      max-width: 480px; margin: 0 auto;
+      padding: 4px 4px 6px;
+      display: flex;
+      pointer-events: auto;
+      box-shadow: 0 -4px 32px rgba(0,0,0,0.4);
+    }
+    .tab-btn {
+      flex: 1; background: none; border: none; color: var(--text-tertiary);
+      padding: 8px 0 6px; font-size: 11px; font-weight: 500;
+      letter-spacing: -0.2px;
+      display: flex; flex-direction: column; align-items: center;
+      cursor: pointer; border-radius: 18px; transition: all 0.2s;
+      position: relative;
+    }
+    .tab-btn .tab-icon {
+      width: 24px; height: 24px;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 1px;
+    }
+    .tab-btn .tab-icon svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .tab-btn.active { color: var(--text); }
+    .tab-btn .active-indicator {
+      display: none;
+      width: 22px; height: 3px; border-radius: 2px;
+      background: var(--accent);
+      margin-top: 2px;
+    }
+    .tab-btn.active .active-indicator { display: block; }
+
+    .page { display: none; animation: fadeIn 0.2s ease; }
+    .page.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ─── Loading / Error ─── */
+    .loading-pulse {
+      background: linear-gradient(90deg, var(--surface) 25%, rgba(139,92,246,0.1) 50%, var(--surface) 75%);
+      background-size: 200% 100%;
+      animation: pulse 1.5s ease infinite;
+    }
+    @keyframes pulse { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+    /* ─── Loading Overlay ─── */
+    .loading-overlay {
+      display: none;
+      position: fixed; top: 0; left: 0; right: 0;
+      z-index: 200; padding: 12px;
+      background: linear-gradient(180deg, var(--bg), transparent);
+    }
+    .loading-overlay.visible { display: block; }
+    .loading-bar {
+      max-width: 480px; margin: 0 auto;
+      height: 3px; border-radius: 2px;
+      background: rgba(139,92,246,0.15);
+      overflow: hidden;
+    }
+    .loading-bar-fill {
+      height: 100%; width: 30%; border-radius: 2px;
+      background: var(--accent);
+      animation: loading-slide 1.2s ease-in-out infinite;
+    }
+    @keyframes loading-slide {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(400%); }
+    }
+
+    /* ─── Dark scrollbar ─── */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 4px; }
+
+    @media (display-mode: standalone) {
+      .header { padding-top: max(48px, env(safe-area-inset-top)); }
+    }
+
+    @media (max-width: 380px) {
+      .score-strip { padding: 14px; gap: 10px; }
+      .score-ring-wrap { width: 60px; height: 60px; }
+      .score-ring-wrap svg { width: 60px; height: 60px; }
+      .score-ring-number { font-size: 18px; width: 60px; height: 60px; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Loading Overlay (top bar) -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-bar"><div class="loading-bar-fill"></div></div>
+  </div>
+
+  <div class="header">
+    <h1>Whoop Doctor</h1>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span class="date" id="currentDate"></span>
+      <button id="profileBtn" style="background:rgba(139,92,246,0.15);border:none;color:#8b5cf6;padding:6px 12px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;">Profile</button>
+    </div>
+  </div>
+
+  <!-- Pull to Refresh indicator -->
+  <div class="pull-to-refresh" id="pullToRefresh">
+    <div class="ptr-spinner"></div>
+    <span>Refreshing data…</span>
+  </div>
+
+  <!-- Data Freshness Indicator -->
+  <div class="freshness-bar" id="freshnessBar" style="display:none;">
+    <span class="freshness-dot" id="freshnessDot"></span>
+    <span id="freshnessText"></span>
+  </div>
+
+  <div class="content" id="mainContent">
+    <!-- ═══ BRIEF PAGE ═══ -->
+    <div id="pageBrief" class="page active"></div>
+
+    <!-- ═══ TREND PAGE ═══ -->
+    <div id="pageTrend" class="page"></div>
+
+    <!-- ═══ TRIP PAGE ═══ -->
+    <div id="pageTrip" class="page"></div>
+
+    <!-- ═══ PROFILE PAGE ═══ -->
+    <div id="pageProfile" class="page"></div>
+  </div>
+
+  <!-- ═══ BOTTOM NAV (Brief | Trend | Risk) ═══ -->
+  <div class="tab-bar">
+    <div class="tab-bar-inner">
+      <button class="tab-btn active" data-page="brief">
+        <div class="tab-icon">
+          <svg viewBox="0 0 24 24"><path d="M4 4h16v2H4V4zm0 6h16v2H4v-2zm0 6h10v2H4v-2z"/></svg>
+        </div>
+        <span>Brief</span>
+        <div class="active-indicator"></div>
+      </button>
+      <button class="tab-btn" data-page="trend">
+        <div class="tab-icon">
+          <svg viewBox="0 0 24 24"><path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/></svg>
+        </div>
+        <span>Trend</span>
+        <div class="active-indicator"></div>
+      </button>
+      <button class="tab-btn" data-page="trip">
+        <div class="tab-icon">
+          <svg viewBox="0 0 24 24"><path d="M12 2L1 21h22L12 2zm0 4l7 13H5l7-13zm-1 7h2v4h-2v-4zm0-6h2v4h-2V7z"/></svg>
+        </div>
+        <span>Risk</span>
+        <div class="active-indicator"></div>
+      </button>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>
