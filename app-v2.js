@@ -399,12 +399,13 @@ async function loadBrief() {
     setTimeout(() => initStrainVsRecoveryChart(data), 100);
 
   } catch (e) {
-    console.error(e);
+    console.error(e); // Still log to console for debugging on dev tools if available
     container.innerHTML = `
       <div class="score-strip">
         <div class="score-info">
-          <div style="font-size:14px;color:var(--red);font-weight:600;">Failed to load data</div>
-          <div style="font-size:12px;color:var(--text-tertiary);margin-top:4px;">Unable to reach the Whoop API. Pull down to retry.</div>
+          <div style="font-size:14px;color:var(--red);font-weight:600;">API Error:</div>
+          <div style="font-size:12px;color:var(--text-tertiary);margin-top:4px;">${e.message || e.toString()}</div>
+          <div style="font-size:10px;color:var(--text-tertiary);margin-top:8px;">Pull down to retry.</div>
         </div>
       </div>`;
   }
