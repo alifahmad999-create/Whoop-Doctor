@@ -1,6 +1,7 @@
 /* Whoop Doctor — V1 Jarvis Clinical Dashboard */
 /* Brief | Trend | Trip — three tabs, no Profile in nav */
 /* UX Improvements + New Features */
+/* Cache bust 2026-08-02 */
 
 const CLIENT_ID = '48322298-970e-450e-a8ff-c953ce11178d';
 const REDIRECT_URI = 'https://whoop-doctor.pages.dev/auth/callback';
